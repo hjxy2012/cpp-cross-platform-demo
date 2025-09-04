@@ -109,7 +109,6 @@ elseif(APPLE)
     set(CPACK_GENERATOR "TGZ;DragNDrop")
     set(CPACK_DMG_FORMAT "UDBZ")
     set(CPACK_DMG_VOLUME_NAME "Calculator")
-    set(CPACK_DMG_DS_STORE_SETUP_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/DS_Store_Setup.scpt")
     
 elseif(UNIX)
     set(CPACK_GENERATOR "TGZ;DEB;RPM")
