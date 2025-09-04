@@ -1,5 +1,11 @@
 name: Build and Release
 
+# 🔥 关键修复：添加权限配置以支持GitHub Release创建
+permissions:
+  contents: write  # 允许创建release和上传文件
+  actions: read    # 允许读取workflow状态
+  checks: read     # 允许读取检查状态
+
 on:
   push:
     branches: [ main, develop ]
