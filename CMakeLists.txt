@@ -20,8 +20,14 @@ if(MSVC)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # GCC 或 Clang
     add_compile_options(-Wall -Wextra -pedantic)
-    # Linux下静态链接
-    if(UNIX AND NOT APPLE)
+    
+    # 🔥 关键修复：Windows MinGW静态链接配置
+    if(WIN32)
+        # Windows下使用MinGW时静态链接运行时库
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
+        message(STATUS "Windows MinGW: 启用静态链接以避免运行时依赖")
+    elseif(UNIX AND NOT APPLE)
+        # Linux下静态链接
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
     endif()
 endif()
