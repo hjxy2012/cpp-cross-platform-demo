@@ -1,0 +1,216 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # 允许手动触发
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x64
+          - os: ubuntu-latest
+            name: linux-x64
+            cmake_preset: linux-release
+            artifact_name: calculator-linux-x64
+            
+          # Windows x64  
+          - os: windows-latest
+            name: windows-x64
+            cmake_preset: windows-release
+            artifact_name: calculator-windows-x64
+            
+          # macOS x64
+          - os: macos-latest
+            name: macos-x64
+            cmake_preset: macos-release
+            artifact_name: calculator-macos-x64
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    # 获取版本信息
+    - name: Get version
+      id: version
+      shell: bash
+      run: |
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          VERSION="dev-$(git rev-parse --short HEAD)"
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Building version: $VERSION"
+
+    # Linux依赖
+    - name: Install Linux dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          ninja-build \
+          rpm
+
+    # macOS依赖  
+    - name: Install macOS dependencies
+      if: runner.os == 'macOS'
+      run: |
+        brew install ninja cmake
+
+    # Windows依赖
+    - name: Setup Windows environment
+      if: runner.os == 'Windows'
+      uses: microsoft/setup-msbuild@v1.3
+      
+    - name: Install Windows dependencies
+      if: runner.os == 'Windows'
+      run: |
+        choco install ninja nsis --no-progress
+
+    # 配置CMake
+    - name: Configure CMake
+      shell: bash
+      run: |
+        cmake -B build \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+          -DCMAKE_INSTALL_PREFIX=install \
+          -DAPP_VERSION=${{ steps.version.outputs.VERSION }}
+
+    # 构建
+    - name: Build
+      run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+    # 安装
+    - name: Install
+      run: cmake --install build --config ${{ env.BUILD_TYPE }}
+
+    # 测试运行
+    - name: Test executable
+      shell: bash
+      run: |
+        cd install/bin
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          echo "5" | ./calculator.exe || true
+        else
+          echo "5" | ./calculator || true
+        fi
+
+    # 打包
+    - name: Create packages
+      shell: bash
+      run: |
+        cd build
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          cpack -G TGZ
+          cpack -G DEB
+          cpack -G RPM
+        elif [[ "$RUNNER_OS" == "Windows" ]]; then
+          cpack -G ZIP
+          if command -v makensis &> /dev/null; then
+            cpack -G NSIS
+          fi
+        elif [[ "$RUNNER_OS" == "macOS" ]]; then
+          cpack -G TGZ
+          cpack -G DragNDrop
+        fi
+
+    # 收集文件
+    - name: Collect artifacts
+      shell: bash
+      run: |
+        mkdir -p dist
+        
+        # 复制可执行文件
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          cp install/bin/calculator.exe dist/calculator-${{ matrix.name }}.exe
+        else
+          cp install/bin/calculator dist/calculator-${{ matrix.name }}
+        fi
+        
+        # 复制包文件
+        find build -name "*.tar.gz" -exec cp {} dist/ \;
+        find build -name "*.zip" -exec cp {} dist/ \;
+        find build -name "*.deb" -exec cp {} dist/ \;
+        find build -name "*.rpm" -exec cp {} dist/ \;
+        find build -name "*.dmg" -exec cp {} dist/ \;
+        find build -name "*.exe" -path "*/build/*" -exec cp {} dist/ \;
+        
+        echo "Artifacts created:"
+        ls -la dist/
+
+    # 上传构建产物
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: dist/
+        retention-days: 30
+
+  # 创建发布
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: Display structure of downloaded files
+      run: ls -R artifacts/
+
+    - name: Prepare release files
+      run: |
+        mkdir release-files
+        find artifacts -type f \( -name "*.exe" -o -name "*.tar.gz" -o -name "*.zip" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o ! -name "*.*" \) -exec cp {} release-files/ \;
+        ls -la release-files/
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release-files/*
+        draft: false
+        prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+        generate_release_notes: true
+        body: |
+          ## Downloads
+          
+          ### Windows
+          - `calculator-windows-x64.exe` - Standalone executable
+          - `*.zip` - Archive package
+          - `*.exe` - Installer (if available)
+          
+          ### Linux  
+          - `calculator-linux-x64` - Standalone executable
+          - `*.tar.gz` - Archive package
+          - `*.deb` - Debian package
+          - `*.rpm` - RPM package
+          
+          ### macOS
+          - `calculator-macos-x64` - Standalone executable  
+          - `*.tar.gz` - Archive package
+          - `*.dmg` - Disk image (if available)
+          
+          ## Usage
+          Run the executable and follow the interactive menu.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
