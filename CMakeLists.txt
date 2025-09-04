@@ -88,13 +88,11 @@ install(FILES
 )
 
 # CPack配置
-include(CPack)
-
 set(CPACK_PACKAGE_NAME "CrossPlatformCalculator")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A cross-platform calculator built with C++ and CMake")
-set(CPACK_PACKAGE_VENDOR "Your Name")
-set(CPACK_PACKAGE_CONTACT "your.email@example.com")
+set(CPACK_PACKAGE_VENDOR "hjxy)
+set(CPACK_PACKAGE_CONTACT "hjxy2012@gmail.com")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
 
@@ -103,7 +101,7 @@ if(WIN32)
     set(CPACK_GENERATOR "ZIP;NSIS")
     set(CPACK_NSIS_DISPLAY_NAME "Cross-Platform Calculator")
     set(CPACK_NSIS_PACKAGE_NAME "Calculator")
-    set(CPACK_NSIS_CONTACT "your.email@example.com")
+    set(CPACK_NSIS_CONTACT "hjxy2012@gmail.com")
     set(CPACK_NSIS_HELP_LINK "https://github.com/yourusername/cpp-cross-platform-demo")
     set(CPACK_NSIS_URL_INFO_ABOUT "https://github.com/yourusername/cpp-cross-platform-demo")
     
@@ -118,7 +116,7 @@ elseif(UNIX)
     
     # DEB包设置
     set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.17), libstdc++6 (>= 5.4.0)")
-    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Your Name <your.email@example.com>")
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "CrossPlatform Calculator Team <hjxy2012@gmail.com>")
     set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "Cross-Platform Calculator
  A simple calculator application built with C++ and CMake.
  Supports basic arithmetic operations: addition, subtraction, 
@@ -139,3 +137,6 @@ set(CPACK_COMPONENT_RUNTIME_DISPLAY_NAME "Calculator Application")
 set(CPACK_COMPONENT_RUNTIME_DESCRIPTION "The main calculator executable")
 set(CPACK_COMPONENT_DOCUMENTATION_DISPLAY_NAME "Documentation")
 set(CPACK_COMPONENT_DOCUMENTATION_DESCRIPTION "README and license files")
+
+# 包含CPack模块（必须在所有CPack变量设置之后）
+include(CPack)

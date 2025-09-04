@@ -62,7 +62,22 @@ jobs:
     - name: Install macOS dependencies
       if: runner.os == 'macOS'
       run: |
-        brew install ninja cmake
+        # Install ninja (should work fine)
+        brew install ninja
+        
+        # Handle cmake tap conflict
+        if brew list cmake &>/dev/null; then
+          echo "cmake is already installed, checking version..."
+          brew --version cmake || true
+        else
+          # Try to install cmake, if it fails due to tap conflict, handle it
+          if ! brew install cmake; then
+            echo "cmake installation failed, likely due to tap conflict"
+            echo "Attempting to resolve by uninstalling and reinstalling..."
+            brew uninstall cmake --ignore-dependencies || true
+            brew install cmake
+          fi
+        fi
 
     - name: Setup Windows environment
       if: runner.os == 'Windows'
